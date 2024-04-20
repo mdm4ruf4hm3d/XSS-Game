@@ -1,0 +1,103 @@
+How to find and test for stored XSS vulnerabilities
+
+Many stored XSS vulnerabilities can be found using Burp Suite's web vulnerability scanner.
+
+Testing for stored XSS vulnerabilities manually can be challenging. You need to test all relevant "entry points" via which attacker-controllable data can enter the application's processing, and all "exit points" at which that data might appear in the application's responses.
+
+Entry points into the application's processing include:
+
+    Parameters or other data within the URL query string and message body.
+    The URL file path.
+    HTTP request headers that might not be exploitable in relation to reflected XSS.
+    Any out-of-band routes via which an attacker can deliver data into the application. The routes that exist depend entirely on the functionality implemented by the application: a webmail application will process data received in emails; an application displaying a Twitter feed might process data contained in third-party tweets; and a news aggregator will include data originating on other web sites.
+
+The exit points for stored XSS attacks are all possible HTTP responses that are returned to any kind of application user in any situation.
+
+The first step in testing for stored XSS vulnerabilities is to locate the links between entry and exit points, whereby data submitted to an entry point is emitted from an exit point. The reasons why this can be challenging are that:
+
+    Data submitted to any entry point could in principle be emitted from any exit point. For example, user-supplied display names could appear within an obscure audit log that is only visible to some application users.
+    Data that is currently stored by the application is often vulnerable to being overwritten due to other actions performed within the application. For example, a search function might display a list of recent searches, which are quickly replaced as users perform other searches.
+
+To comprehensively identify links between entry and exit points would involve testing each permutation separately, submitting a specific value into the entry point, navigating directly to the exit point, and determining whether the value appears there. However, this approach is not practical in an application with more than a few pages.
+
+Instead, a more realistic approach is to work systematically through the data entry points, submitting a specific value into each one, and monitoring the application's responses to detect cases where the submitted value appears. Particular attention can be paid to relevant application functions, such as comments on blog posts. When the submitted value is observed in a response, you need to determine whether the data is indeed being stored across different requests, as opposed to being simply reflected in the immediate response.
+
+When you have identified links between entry and exit points in the application's processing, each link needs to be specifically tested to detect if a stored XSS vulnerability is present. This involves determining the context within the response where the stored data appears and testing suitable candidate XSS payloads that are applicable to that context. At this point, the testing methodology is broadly the same as for finding reflected XSS vulnerabilities. 
+
+
+Stored XSS into HTML context with nothing encoded
+
+
+    Enter the following into the comment box:
+    <script>alert(1)</script>
+    Enter a name, email and website.
+    Click "Post comment".
+    Go back to the blog.
+
+XSS in HTML tag attributes
+"><script>alert(document.domain)</script>
+
+
+
+
+
+
+
+
+Lab: Stored XSS into anchor href attribute with double quotes HTML-encoded
+APPRENTICE
+
+LAB
+Solved
+This lab contains a stored cross-site scripting vulnerability in the comment functionality. To solve this lab, submit a comment that calls the alert function when the comment author name is clicked.
+
+ACCESS THE LAB
+ Solution
+Post a comment with a random alphanumeric string in the "Website" input, then use Burp Suite to intercept the request and send it to Burp Repeater.
+Make a second request in the browser to view the post and use Burp Suite to intercept the request and send it to Burp Repeater.
+Observe that the random string in the second Repeater tab has been reflected inside an anchor href attribute.
+Repeat the process again but this time replace your input with the following payload to inject a JavaScript URL that calls alert:
+
+javascript:alert(1)
+Verify the technique worked by right-clicking, selecting "Copy URL", and pasting the URL in the browser. Clicking the name above your comment should trigger an alert.
+
+
+
+
+
+Lab: Stored DOM XSS
+PRACTITIONER
+
+LAB
+Not solved
+This lab demonstrates a stored DOM vulnerability in the blog comment functionality. To solve this lab, exploit this vulnerability to call the alert() function.
+
+ACCESS THE LAB
+ Solution
+Post a comment containing the following vector:
+
+<><img src=1 onerror=alert(1)>
+In an attempt to prevent XSS, the website uses the JavaScript replace() function to encode angle brackets. However, when the first argument is a string, the function only replaces the first occurrence. We exploit this vulnerability by simply including an extra set of angle brackets at the beginning of the comment. These angle brackets will be encoded, but any subsequent angle brackets will be unaffected, enabling us to effectively bypass the filter and inject HTML.
+
+
+
+Lab: Stored XSS into onclick event with angle brackets and double quotes HTML-encoded and single quotes and backslash escaped
+PRACTITIONER
+
+LAB
+Solved
+This lab contains a stored cross-site scripting vulnerability in the comment functionality.
+
+To solve this lab, submit a comment that calls the alert function when the comment author name is clicked.
+
+ACCESS THE LAB
+ Solution
+Post a comment with a random alphanumeric string in the "Website" input, then use Burp Suite to intercept the request and send it to Burp Repeater.
+Make a second request in the browser to view the post and use Burp Suite to intercept the request and send it to Burp Repeater.
+Observe that the random string in the second Repeater tab has been reflected inside an onclick event handler attribute.
+Repeat the process again but this time modify your input to inject a JavaScript URL that calls alert, using the following payload:
+
+http://foo?&apos;-alert(1)-&apos;
+Verify the technique worked by right-clicking, selecting "Copy URL", and pasting the URL in the browser. Clicking the name above your comment should trigger an alert.
+
+
